@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IAM Roles and Policies for Kaigo Insurance System
+
+Parameters:
+  CarePlanTableName:
+    Type: String
+    Default: CarePlan
+  UserTableName:
+    Type: String
+    Default: User
+
+Resources:
+
+  ## Lambda 基本実行ロール
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: kaigo-lambda-execution-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole  # CloudWatch Logs 用
+
+  ## Lambda用 DynamoDB 読み書き許可ポリシー（CarePlan, User）
+  LambdaDynamoDBPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: lambda-dynamodb-access
+      Roles:
+        - !Ref LambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:Scan
+              - dynamodb:Query
+            Resource:
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CarePlanTableName}
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UserTableName}
+
+  ## （必要であれば）API Gateway が Lambda を呼び出すためのロール（Lambda統合に使用）
+  ApiGatewayInvokeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: apigw-invoke-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: InvokeLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: "*"
+
+Outputs:
+  LambdaExecutionRoleArn:
+    Description: ARN of Lambda Execution Role
+    Value: !GetAtt LambdaExecutionRole.Arn
+  ApiGatewayInvokeLambdaRoleArn:
+    Description: ARN of API Gateway Integration Role
+    Value: !GetAtt ApiGatewayInvokeLambdaRole.Arn

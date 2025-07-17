@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DynamoDB Tables for Kaigo Insurance System
+
+Resources:
+
+  # 1. CarePlan Table
+  CarePlanTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: CarePlan
+      AttributeDefinitions:
+        - AttributeName: CarePlanID
+          AttributeType: S
+        - AttributeName: UserID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: CarePlanID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIDIndex
+          KeySchema:
+            - AttributeName: UserID
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  # 2. User Table
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: User
+      AttributeDefinitions:
+        - AttributeName: UserID
+          AttributeType: S
+        - AttributeName: Role
+          AttributeType: S
+      KeySchema:
+        - AttributeName: UserID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: RoleIndex
+          KeySchema:
+            - AttributeName: Role
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  # 3. Claim Table
+  ClaimTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Claim
+      AttributeDefinitions:
+        - AttributeName: ClaimID
+          AttributeType: S
+        - AttributeName: FacilityID
+          AttributeType: S
+        - AttributeName: ClaimDate
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ClaimID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: FacilityIDIndex
+          KeySchema:
+            - AttributeName: FacilityID
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: ClaimDateIndex
+          KeySchema:
+            - AttributeName: ClaimDate
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  # 4. Facility Table
+  FacilityTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Facility
+      AttributeDefinitions:
+        - AttributeName: FacilityID
+          AttributeType: S
+        - AttributeName: Name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: FacilityID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: NameIndex
+          KeySchema:
+            - AttributeName: Name
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  # 5. Notification Table
+  NotificationTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Notification
+      AttributeDefinitions:
+        - AttributeName: NotificationID
+          AttributeType: S
+        - AttributeName: UserID
+          AttributeType: S
+        - AttributeName: Status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: NotificationID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIDIndex
+          KeySchema:
+            - AttributeName: UserID
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: StatusIndex
+          KeySchema:
+            - AttributeName: Status
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  # 6. Report Table
+  ReportTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Report
+      AttributeDefinitions:
+        - AttributeName: ReportID
+          AttributeType: S
+        - AttributeName: ReportType
+          AttributeType: S
+        - AttributeName: GeneratedDate
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ReportID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ReportTypeIndex
+          KeySchema:
+            - AttributeName: ReportType
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GeneratedDateIndex
+          KeySchema:
+            - AttributeName: GeneratedDate
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  # 7. AuthToken Table
+  AuthTokenTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AuthToken
+      AttributeDefinitions:
+        - AttributeName: TokenID
+          AttributeType: S
+        - AttributeName: UserID
+          AttributeType: S
+        - AttributeName: Expiry
+          AttributeType: S
+      KeySchema:
+        - AttributeName: TokenID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIDIndex
+          KeySchema:
+            - AttributeName: UserID
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: ExpiryIndex
+          KeySchema:
+            - AttributeName: Expiry
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  # 8. AuditLog Table
+  AuditLogTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AuditLog
+      AttributeDefinitions:
+        - AttributeName: LogID
+          AttributeType: S
+        - AttributeName: EventType
+          AttributeType: S
+        - AttributeName: Timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LogID
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: EventTypeIndex
+          KeySchema:
+            - AttributeName: EventType
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: TimestampIndex
+          KeySchema:
+            - AttributeName: Timestamp
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  # 9. MigrationState Table
+  MigrationStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MigrationState
+      AttributeDefinitions:
+        - AttributeName: MigrationID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: MigrationID
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+Outputs:
+  CarePlanTableName:
+    Value: !Ref CarePlanTable
+  UserTableName:
+    Value: !Ref UserTable
+  ClaimTableName:
+    Value: !Ref ClaimTable
+  FacilityTableName:
+    Value: !Ref FacilityTable
+  NotificationTableName:
+    Value: !Ref NotificationTable
+  ReportTableName:
+    Value: !Ref ReportTable
+  AuthTokenTableName:
+    Value: !Ref AuthTokenTable
+  AuditLogTableName:
+    Value: !Ref AuditLogTable
+  MigrationStateTableName:
+    Value: !Ref MigrationStateTable

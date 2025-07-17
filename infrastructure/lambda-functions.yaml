@@ -1,0 +1,228 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: All Lambda Functions (Go-based) for Kaigo Insurance System
+
+Parameters:
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket containing Lambda deployment packages
+  LambdaS3Prefix:
+    Type: String
+    Description: Folder prefix for Lambda ZIPs in S3
+
+Resources:
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: kaigo-lambda-execution-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaBasicDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+#############################
+# Lambda 関数定義
+#############################
+
+  # 1. User CRUD
+  UserHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: UserHandlerFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/user_handler.zip"
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: User
+
+  # 2. CarePlan CRUD
+  CarePlanHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CarePlanHandlerFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/careplan_handler.zip"
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: CarePlan
+
+  # 3. Claim CRUD
+  ClaimHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ClaimHandlerFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/claim_handler.zip"
+      Timeout: 15
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME: Claim
+
+  # 4. Facility CRUD
+  FacilityHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: FacilityHandlerFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/facility_handler.zip"
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: Facility
+
+  # 5. Notification
+  NotificationHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: NotificationHandlerFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/notification_handler.zip"
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: Notification
+
+  # 6. Auth: Login
+  AuthLoginFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: AuthLoginFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/auth_login.zip"
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          USER_TABLE: User
+          JWT_SECRET: your-secret
+
+  # 7. Auth: Signup
+  AuthSignupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: AuthSignupFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/auth_signup.zip"
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          USER_TABLE: User
+          JWT_SECRET: your-secret
+
+  # 8. Auth: Verify Token
+  AuthVerifyTokenFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: AuthVerifyTokenFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/auth_verify_token.zip"
+      Timeout: 5
+      MemorySize: 128
+      Environment:
+        Variables:
+          JWT_SECRET: your-secret
+
+  # 9. User Profile
+  UserProfileFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: UserProfileFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/user_profile.zip"
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: User
+
+  # 10. Role 管理
+  UserRoleFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: UserRoleFunction
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/user_role.zip"
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: User
+
+Outputs:
+  UserHandlerFunctionArn:
+    Value: !GetAtt UserHandlerFunction.Arn
+  AuthLoginFunctionArn:
+    Value: !GetAtt AuthLoginFunction.Arn
+  CarePlanHandlerFunctionArn:
+    Value: !GetAtt CarePlanHandlerFunction.Arn

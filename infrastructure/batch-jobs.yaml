@@ -1,0 +1,333 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EventBridge Batch Jobs for Kaigo System
+
+Parameters:
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket for Lambda ZIPs
+  LambdaS3Prefix:
+    Type: String
+    Description: Folder prefix for batch jobs
+
+Resources:
+
+  ######################
+  # IAM Role
+  ######################
+  BatchLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: kaigo-batch-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BatchLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:*
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  ######################
+  # Lambda Functions
+  ######################
+
+  DailyBillingBatch:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: DailyBillingBatch
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/daily_billing_batch.zip"
+      Timeout: 300
+      MemorySize: 256
+
+  WeeklyReportBatch:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: WeeklyReportBatch
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/weekly_report_batch.zip"
+      Timeout: 300
+      MemorySize: 256
+
+  MonthlyCleanupBatch:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: MonthlyCleanupBatch
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/monthly_cleanup_batch.zip"
+      Timeout: 300
+      MemorySize: 256
+
+  NotificationDispatch:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: NotificationDispatch
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/notification_dispatch.zip"
+      Timeout: 120
+      MemorySize: 128
+      
+        InactiveUserCleanup:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: InactiveUserCleanup
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/inactive_user_cleanup.zip"
+      Timeout: 180
+      MemorySize: 128
+
+  FacilityUsageAggregator:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: FacilityUsageAggregator
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/facility_usage_aggregator.zip"
+      Timeout: 300
+      MemorySize: 256
+
+  InvoiceEmailDispatcher:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: InvoiceEmailDispatcher
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/invoice_email_dispatcher.zip"
+      Timeout: 300
+      MemorySize: 256
+
+  CarePlanAutoExpire:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CarePlanAutoExpire
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/care_plan_auto_expire.zip"
+      Timeout: 180
+      MemorySize: 128
+
+  HealthCheckJob:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: HealthCheckJob
+      Runtime: go1.x
+      Handler: bootstrap
+      Role: !GetAtt BatchLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Sub "${LambdaS3Prefix}/health_check_job.zip"
+      Timeout: 60
+      MemorySize: 128
+
+
+  ######################
+  # EventBridge Rules
+  ######################
+
+  DailyBillingRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: DailyBillingRule
+      ScheduleExpression: cron(0 16 * * ? *) # 01:00 JST = 16:00 UTC
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt DailyBillingBatch.Arn
+          Id: DailyBillingTarget
+
+  WeeklyReportRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: WeeklyReportRule
+      ScheduleExpression: cron(0 18 ? * MON *) # 03:00 JST Monday = 18:00 UTC Sunday
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt WeeklyReportBatch.Arn
+          Id: WeeklyReportTarget
+
+  MonthlyCleanupRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: MonthlyCleanupRule
+      ScheduleExpression: cron(0 17 1 * ? *) # 02:00 JST on 1st = 17:00 UTC
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt MonthlyCleanupBatch.Arn
+          Id: MonthlyCleanupTarget
+
+  NotificationDispatchRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: NotificationDispatchRule
+      ScheduleExpression: cron(0 21 * * ? *) # 06:00 JST = 21:00 UTC 前日
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt NotificationDispatch.Arn
+          Id: NotificationDispatchTarget
+  
+    InactiveUserCleanupRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: InactiveUserCleanupRule
+      ScheduleExpression: cron(0 19 ? * SUN *) # 04:00 JST 日曜
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt InactiveUserCleanup.Arn
+          Id: InactiveUserCleanupTarget
+
+  FacilityUsageAggregatorRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: FacilityUsageAggregatorRule
+      ScheduleExpression: cron(30 17 * * ? *) # 02:30 JST = 17:30 UTC
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt FacilityUsageAggregator.Arn
+          Id: FacilityUsageAggregatorTarget
+
+  InvoiceEmailDispatcherRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: InvoiceEmailDispatcherRule
+      ScheduleExpression: cron(0 22 5 * ? *) # 07:00 JST 毎月5日 = 22:00 UTC
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt InvoiceEmailDispatcher.Arn
+          Id: InvoiceEmailDispatcherTarget
+
+  CarePlanAutoExpireRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: CarePlanAutoExpireRule
+      ScheduleExpression: cron(10 15 * * ? *) # 00:10 JST = 15:10 UTC
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt CarePlanAutoExpire.Arn
+          Id: CarePlanAutoExpireTarget
+
+  HealthCheckJobRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: HealthCheckJobRule
+      ScheduleExpression: cron(0 * * * ? *) # 毎時 :00
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt HealthCheckJob.Arn
+          Id: HealthCheckJobTarget
+
+
+  ######################
+  # Lambda Permissions (invoke from EventBridge)
+  ######################
+
+  DailyBillingInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DailyBillingBatch
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyBillingRule.Arn
+
+  WeeklyReportInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WeeklyReportBatch
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WeeklyReportRule.Arn
+
+  MonthlyCleanupInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MonthlyCleanupBatch
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt MonthlyCleanupRule.Arn
+
+  NotificationDispatchInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref NotificationDispatch
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt NotificationDispatchRule.Arn
+
+    InactiveUserCleanupInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref InactiveUserCleanup
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt InactiveUserCleanupRule.Arn
+
+  FacilityUsageAggregatorInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FacilityUsageAggregator
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt FacilityUsageAggregatorRule.Arn
+
+  InvoiceEmailDispatcherInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref InvoiceEmailDispatcher
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt InvoiceEmailDispatcherRule.Arn
+
+  CarePlanAutoExpireInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CarePlanAutoExpire
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt CarePlanAutoExpireRule.Arn
+
+  HealthCheckJobInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref HealthCheckJob
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt HealthCheckJobRule.Arn
+

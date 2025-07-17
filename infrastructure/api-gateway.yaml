@@ -1,0 +1,590 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: API Gateway REST API for Kaigo Insurance System
+
+Parameters:
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 Bucket for Lambda code
+  LambdaS3Prefix:
+    Type: String
+    Description: S3 Prefix for Lambda code
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID for Authorizer
+
+Resources:
+
+  ##############################
+  # REST API
+  ##############################
+  KaigoApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: KaigoInsuranceApi
+      Description: REST API for Kaigo Insurance System
+
+  ##############################
+  # Cognito Authorizer
+  ##############################
+  CognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: CognitoAuthorizer
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      RestApiId: !Ref KaigoApi
+      ProviderARNs:
+        - !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}
+
+  ##############################
+  # Resources
+  ##############################
+
+  UsersResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt KaigoApi.RootResourceId
+      PathPart: users
+      RestApiId: !Ref KaigoApi
+
+  CarePlansResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt KaigoApi.RootResourceId
+      PathPart: careplans
+      RestApiId: !Ref KaigoApi
+
+  ClaimsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt KaigoApi.RootResourceId
+      PathPart: claims
+      RestApiId: !Ref KaigoApi
+
+  FacilitiesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt KaigoApi.RootResourceId
+      PathPart: facilities
+      RestApiId: !Ref KaigoApi
+
+  NotificationsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt KaigoApi.RootResourceId
+      PathPart: notifications
+      RestApiId: !Ref KaigoApi
+
+  AuthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt KaigoApi.RootResourceId
+      PathPart: auth
+      RestApiId: !Ref KaigoApi
+
+  AuthLoginResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref AuthResource
+      PathPart: login
+      RestApiId: !Ref KaigoApi
+
+  AuthSignupResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref AuthResource
+      PathPart: signup
+      RestApiId: !Ref KaigoApi
+
+  AuthVerifyTokenResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref AuthResource
+      PathPart: verify-token
+      RestApiId: !Ref KaigoApi
+
+  ##############################
+  # Methods & Lambda Integration
+  ##############################
+
+  # Users - GET
+  UsersGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: GET
+      ResourceId: !Ref UsersResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+  UserProfileResource:
+  Type: AWS::ApiGateway::Resource
+  Properties:
+    ParentId: !Ref UsersResource
+    PathPart: profile
+    RestApiId: !Ref KaigoApi
+
+UserProfileGetMethod:
+  Type: AWS::ApiGateway::Method
+  Properties:
+    AuthorizationType: COGNITO_USER_POOLS
+    AuthorizerId: !Ref CognitoAuthorizer
+    HttpMethod: GET
+    ResourceId: !Ref UserProfileResource
+    RestApiId: !Ref KaigoApi
+    Integration:
+      Type: AWS_PROXY
+      IntegrationHttpMethod: POST
+      Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserProfileFunction.Arn}/invocations
+    MethodResponses:
+      - StatusCode: 200
+
+UserProfileOptionsMethod:
+  Type: AWS::ApiGateway::Method
+  Properties:
+    AuthorizationType: NONE
+    HttpMethod: OPTIONS
+    ResourceId: !Ref UserProfileResource
+    RestApiId: !Ref KaigoApi
+    Integration:
+      Type: MOCK
+      RequestTemplates:
+        application/json: '{"statusCode":200}'
+      IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+            method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+    MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Headers: true
+          method.response.header.Access-Control-Allow-Methods: true
+          method.response.header.Access-Control-Allow-Origin: true
+
+UserRoleResource:
+  Type: AWS::ApiGateway::Resource
+  Properties:
+    ParentId: !Ref UsersResource
+    PathPart: role
+    RestApiId: !Ref KaigoApi
+
+UserRolePostMethod:
+  Type: AWS::ApiGateway::Method
+  Properties:
+    AuthorizationType: COGNITO_USER_POOLS
+    AuthorizerId: !Ref CognitoAuthorizer
+    HttpMethod: POST
+    ResourceId: !Ref UserRoleResource
+    RestApiId: !Ref KaigoApi
+    Integration:
+      Type: AWS_PROXY
+      IntegrationHttpMethod: POST
+      Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserRoleFunction.Arn}/invocations
+    MethodResponses:
+      - StatusCode: 200
+
+UserRoleOptionsMethod:
+  Type: AWS::ApiGateway::Method
+  Properties:
+    AuthorizationType: NONE
+    HttpMethod: OPTIONS
+    ResourceId: !Ref UserRoleResource
+    RestApiId: !Ref KaigoApi
+    Integration:
+      Type: MOCK
+      RequestTemplates:
+        application/json: '{"statusCode":200}'
+      IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+            method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+    MethodResponses:
+      - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Headers: true
+          method.response.header.Access-Control-Allow-Methods: true
+          method.response.header.Access-Control-Allow-Origin: true
+
+
+  # Users - POST
+  UsersPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: POST
+      ResourceId: !Ref UsersResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UserHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  UsersOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref UsersResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # CarePlans - GET
+  CarePlansGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: GET
+      ResourceId: !Ref CarePlansResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CarePlanHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  # CarePlans - POST
+  CarePlansPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: POST
+      ResourceId: !Ref CarePlansResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CarePlanHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  CarePlansOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref CarePlansResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # Claims - GET
+  ClaimsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: GET
+      ResourceId: !Ref ClaimsResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ClaimHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  # Claims - POST
+  ClaimsPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: POST
+      ResourceId: !Ref ClaimsResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ClaimHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  ClaimsOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref ClaimsResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # Facilities - GET
+  FacilitiesGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: GET
+      ResourceId: !Ref FacilitiesResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FacilityHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  # Facilities - POST
+  FacilitiesPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: POST
+      ResourceId: !Ref FacilitiesResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FacilityHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  FacilitiesOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref FacilitiesResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # Notifications - GET
+  NotificationsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: GET
+      ResourceId: !Ref NotificationsResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NotificationHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  # Notifications - POST
+  NotificationsPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      HttpMethod: POST
+      ResourceId: !Ref NotificationsResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NotificationHandlerFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  NotificationsOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      ResourceId: !Ref NotificationsResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: MOCK
+        RequestTemplates:
+          application/json: '{"statusCode":200}'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # Auth Login - POST (認証は不要)
+  AuthLoginPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref AuthLoginResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthLoginFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  # Auth Signup - POST (認証は不要)
+  AuthSignupPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref AuthSignupResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthSignupFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  # Auth VerifyToken - POST (認証は不要)
+  AuthVerifyTokenPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref AuthVerifyTokenResource
+      RestApiId: !Ref KaigoApi
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthVerifyTokenFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  ##############################
+  # Deploy Stage
+  ##############################
+  KaigoDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - UsersGetMethod
+      - UsersPostMethod
+      - UsersOptionsMethod
+      - CarePlansGetMethod
+      - CarePlansPostMethod
+      - CarePlansOptionsMethod
+      - ClaimsGetMethod
+      - ClaimsPostMethod
+      - ClaimsOptionsMethod
+      - FacilitiesGetMethod
+      - FacilitiesPostMethod
+      - FacilitiesOptionsMethod
+      - NotificationsGetMethod
+      - NotificationsPostMethod
+      - NotificationsOptionsMethod
+      - AuthLoginPostMethod
+      - AuthSignupPostMethod
+      - AuthVerifyTokenPostMethod
+    Properties:
+      RestApiId: !Ref KaigoApi
+      StageName: prod
+      Description: Production deployment
+
+  ##############################
+  # Stage Settings (Access Log)
+  ##############################
+  KaigoProdStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: prod
+      Description: Production Stage
+      RestApiId: !Ref KaigoApi
+      DeploymentId: !Ref KaigoDeployment
+      MethodSettings:
+        - DataTraceEnabled: true
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          ResourcePath: "/*"
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiGatewayLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}'
+
+  ##############################
+  # CloudWatch Logs Group for API Gateway
+  ##############################
+  ApiGatewayLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/api-gateway/kaigo-prod
+      RetentionInDays: 14
+
+Outputs:
+  ApiGatewayRestApiId:
+    Description: REST API ID
+    Value: !Ref KaigoApi
+  ApiGatewayInvokeUrl:
+    Description: API Gateway invoke URL (prod stage)
+    Value: !Sub "https://${KaigoApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
